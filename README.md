@@ -1,11 +1,11 @@
 I made a daemon for this with Pat Winn's php code.  I'm not sure if I made any
 modifications to his files so I'm leaving them in the php directory as well.
 
-The deamon listens on 9595 and sends the request to the DHCP server.  It sends
+The daemon listens on 9595 and sends the request to the DHCP server.  It sends
 the response back as a json element.
 
 Making a daemon was needed because if you want to access a low port in UNIX
-you need to be root (or privilaged at least).  That's not available with php
+you need to be root (or privileged at least).  That's not available with php
 running under apache.  Even if it was, I wouldn't want to permit all PHP
 applications to access udp port 67.
 
@@ -21,5 +21,5 @@ more comfortable with it)
 
 I want the daemon to support sending queries to multiple DHCP servers at the
 same time.  Whichever DHCP server responds positively first will be the
-response sent to the requestor.
+response sent to the requester.
 
