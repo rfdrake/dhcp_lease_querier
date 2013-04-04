@@ -1,0 +1,86 @@
+#!/usr/bin/php5 -q
+<?
+require_once('dhcpLeaseQuery.php');
+
+$relay = getHostByName(gethostname());
+
+if (!isset($argv[1])) {
+    print "Usage $argv[0]: <DHCP server name or IP address>\n";
+    exit;
+}
+
+if (posix_getuid() != 0) {
+    print "$argv[0]: Must be run as root.\n";
+    exit;
+}
+
+$relay = '172.24.81.122';
+$server = getHostByName($argv[1]);
+$dhcpserver = new dhcpLeaseQuery($relay, $server);
+
+set_time_limit (0);
+$port = 9595;
+
+
+$sock = socket_create(AF_INET, SOCK_STREAM, 0);
+# localhost only
+socket_bind($sock, 0, $port) or die('Could not bind to address');
+socket_listen($sock);
+
+$clients = array($sock);
+
+while (true) {
+    $read = $clients;
+   
+    $ready = socket_select($read, $write = NULL, $except = NULL, null);
+    
+    // check if there is a client trying to connect
+    if (in_array($sock, $read)) {
+        // accept the client, and add him to the $clients array
+        $clients[] = $newsock = socket_accept($sock);
+       
+        socket_getpeername($newsock, $ip);
+       
+        // remove the listening socket from the clients-with-data array
+        $key = array_search($sock, $read);
+        unset($read[$key]);
+    }
+   
+    // loop through all the clients that have data to read from
+    foreach ($read as $read_sock) {
+        // read until newline or 1024 bytes
+        // socket_read while show errors when the client is disconnected,
+        // so silence the error messages
+        $data = @socket_read($read_sock, 1024, PHP_NORMAL_READ);
+       
+        // check if the client is disconnected
+        if ($data === false) {
+            // remove client for $clients array
+            $key = array_search($read_sock, $clients);
+            unset($clients[$key]);
+            // client disconnected.
+            continue;
+        }
+       
+        $data = trim($data);
+        if (!empty($data)) {
+            # do some validation here..
+
+            # this blocks, and may become an issue later.. 
+            $dhcpserver->sendQuery($data);
+            $lease = $dhcpserver->receive();
+            if ($lease !== false) {
+                socket_write($read_sock, json_encode($lease));
+                # only one request per connection now
+                socket_close($read_sock);
+                $key = array_search($read_sock, $clients);
+                unset($clients[$key]);
+             } else {
+                socket_write($read_sock, "$data: HUH?\n");
+            }
+        }
+       
+    } // end of reading foreach
+}
+
+socket_close($sock);
