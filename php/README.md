@@ -1,3 +1,15 @@
+# Notice
+
+**I have verified that this still works, but I haven't made any efforts to
+document it or keep it updated.  If you want to run it or send me patches then
+that is fine.
+
+Please remember the Library is from Pat Winn and it may be best to look around
+to see if he has more modern code rather than starting with this.**
+
+
+
+
 I made a daemon for this with Pat Winn's php code.  I'm not sure if I made any
 modifications to his files so I'm leaving them in the php directory as well.
 

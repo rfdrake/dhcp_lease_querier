@@ -14,7 +14,10 @@ if (posix_getuid() != 0) {
     exit;
 }
 
-$relay = '172.24.81.122';
+# local IP goes here.  0.0.0.0 doesn't work.  If gethostbyname(gethostname())
+# isn't the right IP I suggest fixing your /etc/hosts file to point your hostname at
+# your real IP address... or edit this line.
+$relay = gethostbyname(gethostname());
 $server = getHostByName($argv[1]);
 $dhcpserver = new dhcpLeaseQuery($relay, $server);
 
@@ -31,28 +34,28 @@ $clients = array($sock);
 
 while (true) {
     $read = $clients;
-   
+
     $ready = socket_select($read, $write = NULL, $except = NULL, null);
-    
+
     // check if there is a client trying to connect
     if (in_array($sock, $read)) {
         // accept the client, and add him to the $clients array
         $clients[] = $newsock = socket_accept($sock);
-       
+
         socket_getpeername($newsock, $ip);
-       
+
         // remove the listening socket from the clients-with-data array
         $key = array_search($sock, $read);
         unset($read[$key]);
     }
-   
+
     // loop through all the clients that have data to read from
     foreach ($read as $read_sock) {
         // read until newline or 1024 bytes
         // socket_read while show errors when the client is disconnected,
         // so silence the error messages
         $data = @socket_read($read_sock, 1024, PHP_NORMAL_READ);
-       
+
         // check if the client is disconnected
         if ($data === false) {
             // remove client for $clients array
@@ -61,7 +64,7 @@ while (true) {
             // client disconnected.
             continue;
         }
-       
+
         $data = trim($data);
         if (!empty($data)) {
             # do some validation here..
@@ -79,7 +82,7 @@ while (true) {
                 socket_write($read_sock, "$data: HUH?\n");
             }
         }
-       
+
     } // end of reading foreach
 }
 
