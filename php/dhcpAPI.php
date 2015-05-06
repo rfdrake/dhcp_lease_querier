@@ -1,4 +1,4 @@
-<?
+<?php
 
 /**
  * Some handy constants for inclusion..

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for i in {1..254}; do
+    wget -O/dev/null -q "http://localhost:3000?address=10.240.9.$i"
+done
+

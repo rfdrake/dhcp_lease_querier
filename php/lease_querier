@@ -1,5 +1,5 @@
 #!/usr/bin/php5 -q
-<?
+<?php
 require_once('dhcpLeaseQuery.php');
 
 $relay = getHostByName(gethostname());

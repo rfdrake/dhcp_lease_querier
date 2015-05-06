@@ -1,4 +1,4 @@
-<?
+<?php
 
 /**
  * This class performs a dhcp lease query and passes back

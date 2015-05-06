@@ -1,0 +1,100 @@
+#!/usr/bin/perl
+
+use IO::Socket::INET;
+use Net::DHCP::Packet;
+use Net::DHCP::Constants;
+use Mojolicious::Lite;
+use Mojo::Util qw ( trim );
+
+srand;
+
+app->secrets(['Change this if you want to']);
+
+my $dhcp_server = $ARGV[1];
+
+my $handle = IO::Socket::INET->new(Proto => 'udp',
+                                PeerPort => '67',
+                                LocalPort => '67',
+                                PeerAddr => $dhcp_server)
+              or die "socket: $@";     # yes, it uses $@ here
+
+my $inform = Net::DHCP::Packet->new(
+                    op => BOOTREQUEST(),
+                    Htype  => '0',
+                    Hlen   => '0',
+                    Ciaddr => '0.0.0.0',
+                    Giaddr => $handle->sockhost(),
+                    Xid => int(rand(0xFFFFFFFF)),     # random xid
+                    DHO_DHCP_MESSAGE_TYPE() => DHCPLEASEQUERY );
+
+
+# <Option 82>   ::= 0x52 | LEN | <sub-option1> | <sub-option2> |.. | 0xFF
+# <sub-option>  ::= <option-id> <length> <sub-content>
+# <sub-content> ::= <content-id-type> <length> <contents>
+
+sub parse_opt82 {
+    my $opt82 = shift;
+    my $output;
+    return if !defined $opt82;
+
+    my %opts = unpack('(CC/a*)*', $opt82);
+
+    # sub-option 0x1 circuit-id
+    #            0x2 remote-id
+    #            0x6 subscriber-id (not RFC3046)
+
+    # remote-id: if subtype is zero then contents are switch mac address
+    # circuit-id: if no subtype or weird subtypes
+    # cisco uses TLV for remote-id and circuit-id values.  Other vendors
+    # don't.  It can be hard to detect what you're getting and other methods
+    # may be needed to detect vendor first.
+    # circuit-id: if subtype is one (possibly cisco specific) it's an ASCII string set on the device
+    # circuit-id: if subtype is zero vlan (16bit base10), Port (2*8bit base10)
+
+    if ($opts{1} =~ /(\d+\.\d+\.\d+\.\d+):(\S+):-(\d+)/) {  # zhone
+        $output->{'remote-id'}=$1;
+        $output->{'port'}=$2;
+        $output->{'vlan'}=$3;
+    } else { # cisco
+
+        foreach my $opt (keys %opts) {
+            my %subopts = unpack('(CC/a*)*', $opts{$opt});
+            $opts{$opt}=\%subopts;
+        }
+
+        $output->{'remote-id'}=sprintf("%x:%x:%x:%x:%x:%x", unpack('C*',$opts{2}{0}));
+        my ($vlan,$port1,$port2)=unpack('nCC',$opts{1}{0});
+        $output->{'vlan'}=$vlan;
+        $output->{'port'}="$port1-$port2";
+    }
+#    use Data::Dumper;
+#    $Data::Dumper::Useqq=1;
+#    print Dumper \%opts;
+    return $output;
+}
+
+get '/' => sub {
+    my $self = shift;
+    my $address = $self->param('address');
+    $inform->ciaddr($address);
+    $inform->xid(int(rand(0xFFFFFFFF)));
+    # send request
+    $handle->send($inform->serialize()) or warn "Error sending LeaseQuery: $!\n";
+
+    # this blocks, but I've decided that is ok.  They will be using ajax to
+    # pull this page so their request will already be async.
+    $handle->recv(my $buffer, 1024);
+    my $packet = Net::DHCP::Packet->new($buffer);
+    die "Packet doesn't match input $packet->xid, $inform->xid\n" if ($packet->xid ne $inform->xid);
+    my @values = split(/\n/, $packet->toString);
+    my $output;
+    for(@values) {
+        my ($name, $value) = split(/=/, $_);
+        next if (!defined($value));
+        $output->{trim($name)}=trim($value);
+    }
+    $output->{'mac_address'} = join(':', ($output->{'chaddr'} =~ m/../g));
+    return $self->render(json => [ $output, parse_opt82($packet->getOptionRaw(DHO_DHCP_AGENT_OPTIONS)) ]);
+};
+
+app->start;
