@@ -1,5 +1,7 @@
 
-# dhcpleasequery - an HTTP daemon that sends a LEASEQUERY request to a DHCP server and formats the reply as JSON object
+# dhcpleasequery
+
+**HTTP daemon that sends a LEASEQUERY request to a DHCP server and formats the reply as JSON object**
 
 This server will only talk to one DHCP server and it blocks waiting for a
 response.  I wanted to support querying multiple servers but decided you could
