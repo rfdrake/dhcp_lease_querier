@@ -51,7 +51,7 @@ sub parse_opt82 {
     # circuit-id: if subtype is one (possibly cisco specific) it's an ASCII string set on the device
     # circuit-id: if subtype is zero vlan (16bit base10), Port (2*8bit base10)
 
-    if ($opts{1} =~ /(\d+\.\d+\.\d+\.\d+):(\S+):-(\d+)/) {  # zhone
+    if ($opts{1} =~ /^(\d+\.\d+\.\d+\.\d+):(\S+)-(\d+)$/) {  # zhone
         $output->{'remote-id'}=$1;
         $output->{'port'}=$2;
         $output->{'vlan'}=$3;
