@@ -5,6 +5,7 @@ use Net::DHCP::Packet;
 use Net::DHCP::Constants;
 use Mojolicious::Lite;
 use Mojo::Util qw ( trim );
+use Proc::PID::File;
 
 srand;
 
@@ -97,4 +98,7 @@ get '/' => sub {
     return $self->render(json => [ $output, parse_opt82($packet->getOptionRaw(DHO_DHCP_AGENT_OPTIONS)) ]);
 };
 
+if (Proc::PID::File->running()) {
+   exit(0);
+}
 app->start;
